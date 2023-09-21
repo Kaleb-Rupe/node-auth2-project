@@ -11,11 +11,11 @@ router.post("/register", validateRoleName, (req, res, next) => {
   const hash = bcrypt.hashSync(password, 8);
 
   User.add({ username, password: hash, role_name })
-    .then((saved) => {
+    .then((newUser) => {
       res.status(201).json({
-        user: saved.user,
-        username: saved.username,
-        role_name: saved.role_name,
+        user_id: newUser.user_id,
+        username: newUser.username,
+        role_name: newUser.role_name,
       });
     })
     .catch(next);
@@ -35,7 +35,7 @@ router.post("/register", validateRoleName, (req, res, next) => {
 router.post("/login", checkUsernameExists, (req, res, next) => {
   if (bcrypt.compareSync(req.body.password, req.user.password)) {
     const token = buildToken(req.user);
-    res.json({ message: `${req.user.username} is back!`, token });
+    res.json({ status: 200, message: `${req.user.username} is back!`, token });
   } else {
     next({ status: 401, message: "Invalid credentials" });
   }
@@ -63,7 +63,7 @@ router.post("/login", checkUsernameExists, (req, res, next) => {
 
 function buildToken(user) {
   const payload = {
-    subject: user.user.id,
+    subject: user.user_id,
     username: user.username,
     role_name: user.role_name,
   };
