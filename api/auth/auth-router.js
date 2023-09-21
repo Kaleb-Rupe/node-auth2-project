@@ -3,19 +3,20 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../users/users-model");
 const { checkUsernameExists, validateRoleName } = require("./auth-middleware");
-const { JWT_SECRET, BCRYPT_ROUNDS } = require("../secrets"); // use this secret!
+const { JWT_SECRET } = require("../secrets"); // use this secret!
 
 router.post("/register", validateRoleName, (req, res, next) => {
-  let user = req.body;
+  const { username, password } = req.body;
+  const { role_name } = req;
+  const hash = bcrypt.hashSync(password, 8);
 
-  // bcrypting the password before saving
-  const hash = bcrypt.hashSync(user.password, BCRYPT_ROUNDS);
-  // never save the plain text password in the db
-  user.password = hash;
-
-  User.add(user)
+  User.add({ username, password: hash, role_name })
     .then((saved) => {
-      res.status(201).json({ message: `Great to have you, ${saved.username}` });
+      res.status(201).json({
+        user: saved.user,
+        username: saved.username,
+        role_name: saved.role_name,
+      });
     })
     .catch(next);
   /**
@@ -32,18 +33,13 @@ router.post("/register", validateRoleName, (req, res, next) => {
 });
 
 router.post("/login", checkUsernameExists, (req, res, next) => {
-  let { username, password } = req.body;
+  if (bcrypt.compareSync(req.body.password, req.user.password)) {
+    const token = buildToken(req.user);
+    res.json({ message: `${req.user.username} is back!`, token });
+  } else {
+    next({ status: 401, message: "Invalid credentials" });
+  }
 
-  User.findBy({ username })
-    .then(([user]) => {
-      if (user && bcrypt.compareSync(password, user.password)) {
-        const token = buildToken(user);
-        res.status(200).json({ message: `${user.username} is back!`, token });
-      } else {
-        next({ status: 401, message: "Invalid Credentials" });
-      }
-    })
-    .catch(next);
   /**
     [POST] /api/auth/login { "username": "sue", "password": "1234" }
 
@@ -67,9 +63,9 @@ router.post("/login", checkUsernameExists, (req, res, next) => {
 
 function buildToken(user) {
   const payload = {
-    subject: user.id,
+    subject: user.user.id,
     username: user.username,
-    role: user.role,
+    role_name: user.role_name,
   };
   const options = {
     expiresIn: "1d",
