@@ -9,8 +9,7 @@ const restricted = (req, res, next) => {
       if (err) {
         next({ status: 401, message: `Token invalid` });
       } else {
-        req.decodedJwt = decoded;
-        console.log(req.decodedJwt);
+        req.decoded = decoded;
         next();
       }
     });
@@ -35,7 +34,7 @@ const restricted = (req, res, next) => {
 };
 
 const only = (role_name) => (req, res, next) => {
-  if (req.decodedJwt && req.decodedJwt.role_name === role_name) {
+  if (req.decoded.role_name === role_name) {
     next();
   } else {
     next({ status: 403, message: `This is not for you` });
